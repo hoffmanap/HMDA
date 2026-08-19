@@ -738,7 +738,16 @@ svg.leaflet-image-layer.leaflet-interactive path {
   .gap-note{font-family:'JetBrains Mono',monospace;font-size:11px;color:#a39d8c;padding:6px 10px;border:2px dashed #ccc5b0;}
   .caveat{font-family:'JetBrains Mono',monospace;font-size:12px;color:#6b675e;margin-top:10px;padding:10px 12px;background:#faf6e8;border-left:3px solid var(--orange);}
   .table-wrap{border:3px solid var(--ink);background:#fff;overflow-x:auto;margin:22px 0;box-shadow:6px 6px 0 var(--ink);}
-  #tractMap{height:520px;width:100%;border:3px solid var(--ink);box-shadow:6px 6px 0 var(--ink);margin:22px 0;display:block;}
+  #tractMap{height:520px;width:100%;border:3px solid var(--ink);box-shadow:6px 6px 0 var(--ink);margin:22px 0;display:block;position:relative;}
+  .map-legend{position:absolute;bottom:16px;right:10px;z-index:1000;background:rgba(251,249,242,0.95);border:2px solid var(--ink);padding:10px 12px;font-family:'JetBrains Mono',monospace;font-size:11px;max-width:230px;box-shadow:3px 3px 0 var(--ink);}
+  .map-legend .legend-title{font-weight:700;text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px;font-size:10px;}
+  .map-legend .legend-gradient{height:12px;width:100%;border:1px solid var(--ink);margin:4px 0;}
+  .map-legend .legend-labels{display:flex;justify-content:space-between;color:#6b675e;}
+  .map-legend .legend-note{margin-top:8px;padding-top:8px;border-top:1px dashed #ccc5b0;color:#6b675e;line-height:1.4;}
+  .map-fullscreen-btn{position:absolute;top:10px;right:10px;z-index:1000;background:#fff;border:2px solid var(--ink);width:34px;height:34px;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;line-height:1;box-shadow:2px 2px 0 var(--ink);}
+  .map-fullscreen-btn:hover{background:var(--yellow);}
+  #tractMap:fullscreen{height:100vh;}
+  #tractMap:fullscreen .leaflet-container{height:100%;}
   .map-status{font-family:'JetBrains Mono',monospace;font-size:12px;color:#6b675e;margin:10px 0;}
   .leaflet-popup-content-wrapper{border-radius:0;border:2px solid var(--ink);font-family:'Space Grotesk',sans-serif;}
   .leaflet-popup-content{font-size:13px;}
@@ -970,7 +979,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
     <div class="placeholder-map" id="placeholderMap" style="display:none;">
       🗺️ Map boundary data unavailable in this build.
     </div>
-    <p class="chart-caption">Click any tract on the map to highlight its row in the table below, or click a table row to zoom the map to that tract, they're the same 240 tracts either way.</p>
+    <p class="chart-caption">Click any tract on the map to highlight its row in the table below, or click a table row to zoom the map to that tract, they're the same 240 tracts either way. Scroll to zoom, drag to pan, and use the ⛶ button (top right of the map) to expand it full screen. Tract fills are translucent so street names from the base map show through.</p>
 
     <div class="table-wrap">
       <div class="table-scroll">
@@ -1573,9 +1582,55 @@ function tractGeoIdOf(feature){
 
 function ensureMap(){
   if(!leafletMap){
-    leafletMap = L.map('tractMap', {scrollWheelZoom:false});
+    leafletMap = L.map('tractMap', {scrollWheelZoom:true});
     leafletMap.setView([31.76, -106.35], 10);
+
+    // basemap so street names / geography show through the translucent tract fills
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+      maxZoom: 19,
+    }).addTo(leafletMap);
+
+    // fullscreen toggle (native Fullscreen API, no plugin needed)
+    const mapEl = document.getElementById('tractMap');
+    const fsBtn = document.createElement('button');
+    fsBtn.className = 'map-fullscreen-btn';
+    fsBtn.title = 'Toggle full screen';
+    fsBtn.innerHTML = '⛶';
+    fsBtn.onclick = () => {
+      if(!document.fullscreenElement){
+        mapEl.requestFullscreen ? mapEl.requestFullscreen() : mapEl.webkitRequestFullscreen && mapEl.webkitRequestFullscreen();
+      } else {
+        document.exitFullscreen ? document.exitFullscreen() : document.webkitExitFullscreen && document.webkitExitFullscreen();
+      }
+    };
+    mapEl.appendChild(fsBtn);
+    document.addEventListener('fullscreenchange', () => setTimeout(() => leafletMap.invalidateSize(), 100));
+
+    // legend container, content filled in per-render
+    const legendEl = document.createElement('div');
+    legendEl.className = 'map-legend';
+    legendEl.id = 'mapLegendBox';
+    mapEl.appendChild(legendEl);
   }
+}
+
+function updateLegend(mode, fieldA, fieldB, aMin, aMax){
+  const box = document.getElementById('mapLegendBox');
+  if(!box) return;
+  const grad = mode === 'change'
+    ? 'linear-gradient(to right, #4de3d1, #fff, #ff5fb4)'
+    : 'linear-gradient(to right, #fff, #ff5fb4)';
+  const leftLabel = mode === 'change' ? 'Decreased' : fmtVal(fieldA, aMin);
+  const rightLabel = mode === 'change' ? 'Increased' : fmtVal(fieldA, aMax);
+  box.innerHTML = `
+    <div class="legend-title">${mode==='change' ? FIELD_LABELS[fieldA] + ', % change' : FIELD_LABELS[fieldA]}</div>
+    <div class="legend-gradient" style="background:${grad};"></div>
+    <div class="legend-labels"><span>${leftLabel}</span><span>${rightLabel}</span></div>
+    ${(mode!=='change' && fieldB && fieldB!=='none') ? `<div class="legend-note">Border thickness = ${FIELD_LABELS[fieldB]} (thicker = higher)</div>` : ''}
+    ${mode!=='change' ? `<div class="legend-note">Tracts with fewer than 5 applications excluded (unreliable rates)</div>` : ''}
+    <div class="legend-note">Basemap: OpenStreetMap</div>
+  `;
 }
 
 async function renderYearMap(){
@@ -1602,12 +1657,13 @@ async function renderYearMap(){
   if(geoLayer){ leafletMap.removeLayer(geoLayer); }
 
   const dataByTract = {};
-  TRACTS.filter(t=>t.year===year).forEach(t=>{ dataByTract[t.tract] = t; });
+  TRACTS.filter(t=>t.year===year && t.count>=5).forEach(t=>{ dataByTract[t.tract] = t; });
 
   const aVals = Object.values(dataByTract).map(r=>r[fieldA]).filter(v=>v!=null);
   const aMin = aVals.length?Math.min(...aVals):0, aMax = aVals.length?Math.max(...aVals):1;
   const bVals = fieldB!=='none' ? Object.values(dataByTract).map(r=>r[fieldB]).filter(v=>v!=null) : [];
   const bMin = bVals.length?Math.min(...bVals):0, bMax = bVals.length?Math.max(...bVals):1;
+  updateLegend('year', fieldA, fieldB, aMin, aMax);
 
   geoLayer = L.geoJSON(gj, {
     style: (feature) => {
@@ -1621,7 +1677,7 @@ async function renderYearMap(){
         weight = 1.5 + t*5;
       }
       if(selectedTract===geoid) weight = Math.max(weight, 4);
-      return { fillColor, color: selectedTract===geoid ? '#161513' : '#4de3d1', weight, fillOpacity: rec ? 0.85 : 0.15 };
+      return { fillColor, color: selectedTract===geoid ? '#161513' : '#4de3d1', weight, fillOpacity: rec ? 0.55 : 0.08 };
     },
     onEachFeature: (feature, layer) => {
       const geoid = tractGeoIdOf(feature);
@@ -1665,6 +1721,7 @@ async function renderChangeMap(){
 
   const vals = TRACT_CHANGE.map(r=>r[changeKey]).filter(v=>v!=null);
   const maxAbs = vals.length ? Math.max(...vals.map(Math.abs)) : 1;
+  updateLegend('change', fieldA, null, -maxAbs, maxAbs);
 
   geoLayer = L.geoJSON(gj, {
     style: (feature) => {
@@ -1673,7 +1730,7 @@ async function renderChangeMap(){
       const val = rec ? rec[changeKey] : null;
       const fillColor = divergingColorScale(val, maxAbs, '#4de3d1', '#ff5fb4');
       let weight = selectedTract===geoid ? 4 : 1.5;
-      return { fillColor, color: selectedTract===geoid ? '#161513' : '#8a7bff', weight, fillOpacity: rec && val!=null ? 0.85 : 0.1 };
+      return { fillColor, color: selectedTract===geoid ? '#161513' : '#8a7bff', weight, fillOpacity: rec && val!=null ? 0.55 : 0.06 };
     },
     onEachFeature: (feature, layer) => {
       const geoid = tractGeoIdOf(feature);
