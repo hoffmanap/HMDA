@@ -875,19 +875,11 @@ svg.leaflet-image-layer.leaflet-interactive path {
   <article id="beeswarm">
     <div class="kicker">07 · Who applies vs. who lives here</div>
     <h2>The typical applicant<br>is not the typical El Pasoan</h2>
-    <p class="lede">People who apply for a mortgage are never a random sample of a county's residents; renters, people without stable income documentation, and people who already own their home outright don't show up in this data at all. But the gap is worth sizing. Among 2022-2025 applicants, median reported income was <b>$85,000</b>, about 42% higher than El Paso County's median household income of <b>$59,888</b> (2024 American Community Survey estimate). Every dot below is one applicant from a random sample of recent records; the dashed line marks the county's actual median household income for comparison.</p>
-    <p class="lede">Split by outcome, the gap narrows for people who get turned down: <b>denied applicants had a median income of $71,000</b>, noticeably closer to the county median than the <b>$89,000</b> median among originated loans. Denied applicants are still above the typical El Paso household, but meaningfully more like it than the borrowers who get approved.</p>
+    <p class="lede">People who apply for a mortgage are never a random sample of a county's residents; renters, people without stable income documentation, and people who already own their home outright don't show up in this data at all. But the gap is worth sizing. Among 2022-2025 applicants, median reported income was <b>$85,000</b>, about 42% higher than El Paso County's median household income of <b>$59,888</b> (2024 American Community Survey estimate). The homes financed skew similarly high-end: the median property value behind these applications was <b>$245,000</b>, well above the county's overall median home value of <b>$209,100</b>. Every dot below is one applicant from a random sample of recent records; the dashed line in each chart marks the matching county-wide benchmark.</p>
+    <p class="lede">Split by outcome, the gap narrows for people who get turned down, on both measures. Denied applicants had a median income of <b>$71,000</b> versus <b>$89,000</b> for originated loans, and were financing homes with a median value of <b>$225,000</b> versus <b>$255,000</b> for originated loans. Denied applicants are still above the county's typical resident and typical home, but meaningfully closer to both than the people who get approved.</p>
 
     <div class="chart-wrap">
-      <h3 id="beeswarmTitle">Applicant income distribution, 2022-2025 (sample of 1,200 records)</h3>
       <div class="row" style="margin-bottom:16px;">
-        <div class="field">
-          <label>Show</label>
-          <select id="beeswarmMetric">
-            <option value="income">Applicant income</option>
-            <option value="property_value">Home value</option>
-          </select>
-        </div>
         <div class="field">
           <label>Color by</label>
           <select id="beeswarmColorBy">
@@ -896,10 +888,14 @@ svg.leaflet-image-layer.leaflet-interactive path {
           </select>
         </div>
       </div>
-      <canvas id="beeswarmChart"></canvas>
-      <p class="chart-caption">Denied applicants sit closer to El Paso's actual median household income than approved applicants do. Both groups still earn more than the typical household, but the gap narrows sharply for the people who get turned down.</p>
+      <h3>Applicant income distribution, 2022-2025 (sample of 1,200 records)</h3>
+      <canvas id="beeswarmChartIncome"></canvas>
+      <p class="chart-caption">Applicant income vs. El Paso County's median household income of $59,888.</p>
+      <h3 style="margin-top:32px;">Home value distribution, 2022-2025 (sample)</h3>
+      <canvas id="beeswarmChartValue"></canvas>
+      <p class="chart-caption">The value of homes actually receiving mortgages vs. El Paso County's overall median home value of $209,100. Denied applicants sit closer to both county benchmarks than approved applicants do on either measure.</p>
     </div>
-    <div class="caveat">This is a sample, not the full population, drawn evenly across 2022-2025 to keep the chart readable. Income is self-reported at time of application and capped for display at $400,000 to keep outliers from compressing the rest of the distribution; a small number of higher-income applications are not shown but are included in the median calculations above.</div>
+    <div class="caveat">This is a sample, not the full population, drawn evenly across 2022-2025 to keep the charts readable. Both fields are self-reported/appraised at time of application and capped for display (income at $400,000, home value at $700,000) to keep outliers from compressing the rest of the distribution; a small number of higher values are not shown but are included in the median calculations above. Home value uses only applications where property value was reported, a smaller subset than the income sample.</div>
 
     <div class="stat-row">
       <div class="stat"><div class="n">82.7%</div><div class="l">County population, Hispanic or Latino (2024 ACS)</div></div>
@@ -1192,11 +1188,11 @@ new Chart(document.getElementById('denialReasonChart'), {
   options:{ responsive:true, plugins:{legend:{position:'bottom', labels:{boxWidth:12}}}, scales:{ x:{grid:{display:false}}, y:{grid:{color:'#e3e0d5'}, title:{display:true,text:'Share of denied applications (%)'}} } }
 });
 
-// ---------------- BEESWARM CHART ----------------
+// ---------------- BEESWARM CHARTS (income + home value, always both shown) ----------------
 const BEESWARM = JSON.parse(document.getElementById('beeswarmData').textContent);
 const METRIC_CONFIG = {
-  income: { label: 'Reported income', field: 'income', max: 400000, benchmark: 59888, benchmarkLabel: 'County median household income: $59,888' },
-  property_value: { label: 'Home value', field: 'property_value', max: 700000, benchmark: 209100, benchmarkLabel: 'County median home value: $209,100' },
+  income: { label: 'Reported income', field: 'income', max: 400000, benchmark: 59888, benchmarkLabel: 'County median household income: $59,888', canvasId: 'beeswarmChartIncome' },
+  property_value: { label: 'Home value', field: 'property_value', max: 700000, benchmark: 209100, benchmarkLabel: 'County median home value: $209,100', canvasId: 'beeswarmChartValue' },
 };
 
 function jitterY(points, xKey, width, height){
@@ -1216,14 +1212,10 @@ function jitterY(points, xKey, width, height){
   });
 }
 
-let beeswarmChart;
-function renderBeeswarm(){
-  const metricKey = document.getElementById('beeswarmMetric').value;
+const beeswarmCharts = {};
+function renderOneBeeswarm(metricKey){
   const metric = METRIC_CONFIG[metricKey];
   const colorBy = document.getElementById('beeswarmColorBy').value;
-
-  document.getElementById('beeswarmTitle').textContent =
-    (metricKey==='income' ? 'Applicant income distribution' : 'Home value distribution') + ', 2022-2025 (sample)';
 
   const eligible = BEESWARM.filter(d => d[metric.field] != null && d[metric.field] <= metric.max);
   jitterY(eligible, metric.field, metric.max, 60);
@@ -1246,8 +1238,8 @@ function renderBeeswarm(){
     pointRadius: 4,
   }));
 
-  if(beeswarmChart) beeswarmChart.destroy();
-  beeswarmChart = new Chart(document.getElementById('beeswarmChart'), {
+  if(beeswarmCharts[metricKey]) beeswarmCharts[metricKey].destroy();
+  beeswarmCharts[metricKey] = new Chart(document.getElementById(metric.canvasId), {
     type: 'scatter',
     data: { datasets },
     options: {
@@ -1284,9 +1276,12 @@ function renderBeeswarm(){
     }]
   });
 }
-document.getElementById('beeswarmMetric').addEventListener('change', renderBeeswarm);
-document.getElementById('beeswarmColorBy').addEventListener('change', renderBeeswarm);
-renderBeeswarm();
+function renderBeeswarms(){
+  renderOneBeeswarm('income');
+  renderOneBeeswarm('property_value');
+}
+document.getElementById('beeswarmColorBy').addEventListener('change', renderBeeswarms);
+renderBeeswarms();
 
 // ---------------- TRACT EXPLORER TABLE + MAP ----------------
 const TRACT_CHANGE = JSON.parse(document.getElementById('tractChangeData').textContent);
@@ -1494,7 +1489,6 @@ function selectTract(tract){
 }
 
 [tractYearSel, fieldASel, fieldBSel, mapViewSel].forEach(el=>el.addEventListener('change', renderAll));
-renderAll();
 
 // ---------------- TRACT BOUNDARY MAP (progressive enhancement) ----------------
 const YEAR_TO_VINTAGE = {};
@@ -1650,6 +1644,10 @@ async function renderChangeMap(){
 
   try{ leafletMap.fitBounds(geoLayer.getBounds(), {padding:[10,10]}); }catch(e){}
 }
+
+
+// initial render, called last so every function/variable above is fully defined first
+renderAll();
 
 </script>
 </body>
