@@ -3,7 +3,7 @@
 
 A self-contained, single-file HTML dashboard built from raw Home Mortgage Disclosure Act (HMDA) Loan/Application Register (LAR) data, in the pudding.cool "highlighter" visual style.
 
-**[Open the dashboard → `index.html`](./index.html)**
+**[Open the dashboard → `https://hoffmanap.github.io/HMDA/`](https://hoffmanap.github.io/HMDA/)**
 
 ---
 
@@ -20,7 +20,7 @@ Every mortgage application filed in El Paso County generates a public HMDA recor
 - **Who applies vs. who lives here**: a beeswarm comparing the income distribution of recent applicants (split by outcome and by ethnicity) against El Paso County's actual median household income and demographics, from the American Community Survey
 - **Tract-by-tract detail**: all 240 El Paso census tracts, as a sortable bivariate-encoded table, with a **map** driven by the same tract boundary files described below
 
-The dashboard is a single HTML file with all aggregated data embedded inline; it works offline, with no server, no API calls, and no external data dependencies beyond CDN-hosted charting/mapping libraries (Chart.js, Leaflet).
+The dashboard is a single HTML file with all aggregated data **and both charting/mapping libraries (Chart.js, Leaflet) embedded inline**; it works fully offline, with no server, no API calls, and no CDN or external network dependency of any kind. Opening the file is enough; nothing needs to load from the internet except the optional Google Fonts link, which is purely cosmetic and the page still renders correctly without it.
 
 ---
 
