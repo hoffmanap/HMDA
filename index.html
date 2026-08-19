@@ -759,8 +759,12 @@ svg.leaflet-image-layer.leaflet-interactive path {
   tr:hover td{outline:2px solid var(--ink);outline-offset:-2px;}
   .swatch{display:inline-block;width:14px;height:14px;border:1px solid var(--ink);vertical-align:middle;margin-right:6px;}
   .legend{display:flex;flex-wrap:wrap;gap:16px;align-items:center;margin-top:14px;font-family:'JetBrains Mono',monospace;font-size:11px;}
-  .bivariate-grid{display:grid;grid-template-columns:repeat(3,20px);grid-template-rows:repeat(3,20px);gap:2px;border:2px solid var(--ink);}
-  .bivariate-grid div{width:20px;height:20px;}
+  .bivariate-grid{display:grid;grid-template-columns:repeat(3,22px);grid-template-rows:repeat(3,22px);gap:2px;border:2px solid var(--ink);}
+  .bivariate-grid div{width:22px;height:22px;}
+  .map-legend.bivariate{max-width:none;width:auto;}
+  .legend-bivariate-wrap{display:flex;gap:10px;align-items:flex-end;}
+  .legend-axis-y{writing-mode:vertical-rl;transform:rotate(180deg);font-size:10px;color:#6b675e;text-align:center;white-space:nowrap;}
+  .legend-axis-x{font-size:10px;color:#6b675e;text-align:center;margin-top:4px;}
   .placeholder-map{border:3px dashed #ccc5b0;background:#faf6e8;padding:40px 24px;text-align:center;font-family:'JetBrains Mono',monospace;font-size:13px;color:#6b675e;margin:22px 0;}
   .placeholder-map b{color:var(--ink);}
   footer{max-width:1040px;margin:60px auto 40px;padding:0 24px;font-family:'JetBrains Mono',monospace;font-size:12px;color:#6b675e;border-top:3px solid var(--ink);padding-top:20px;}
@@ -1392,6 +1396,25 @@ function divergingColorScale(val, maxAbs, negHex, posHex){
   return `rgb(${mix(r)},${mix(g)},${mix(b)})`;
 }
 
+// ---- Bivariate 3x3 palette (field A = pink axis, field B = cyan axis) ----
+// rows = fieldB bin (0=low..2=high), cols = fieldA bin (0=low..2=high)
+const BIVAR_PALETTE = [
+  ['#f3f0e8', '#f5b8d6', '#ff5fb4'],   // fieldB low
+  ['#bfe6df', '#c9b3c8', '#d4699f'],   // fieldB mid
+  ['#4de3d1', '#6ec2c6', '#8a7bff'],   // fieldB high
+];
+function binIndex(val, min, max){
+  if(val==null || max===min) return null;
+  const t = Math.max(0, Math.min(0.999, (val-min)/(max-min)));
+  return Math.floor(t*3);
+}
+function bivariateColor(aVal, aMin, aMax, bVal, bMin, bMax){
+  const ai = binIndex(aVal, aMin, aMax);
+  if(ai==null) return '#fff';
+  const bi = bVal!=null ? binIndex(bVal, bMin, bMax) : 0;
+  return BIVAR_PALETTE[bi==null?0:bi][ai];
+}
+
 let selectedTract = null;
 let sortState = {col:'count', dir:-1};
 let sortStateChange = {col:'denial_rate_pct_change', dir:-1};
@@ -1615,9 +1638,35 @@ function ensureMap(){
   }
 }
 
-function updateLegend(mode, fieldA, fieldB, aMin, aMax){
+function updateLegend(mode, fieldA, fieldB, aMin, aMax, bMin, bMax){
   const box = document.getElementById('mapLegendBox');
   if(!box) return;
+
+  if(mode !== 'change' && fieldB && fieldB !== 'none'){
+    // bivariate 3x3 grid legend
+    box.className = 'map-legend bivariate';
+    let gridHtml = '';
+    for(let row=2; row>=0; row--){
+      for(let col=0; col<3; col++){
+        gridHtml += `<div style="background:${BIVAR_PALETTE[row][col]};"></div>`;
+      }
+    }
+    box.innerHTML = `
+      <div class="legend-title">${FIELD_LABELS[fieldA]} × ${FIELD_LABELS[fieldB]}</div>
+      <div class="legend-bivariate-wrap">
+        <div class="legend-axis-y">${FIELD_LABELS[fieldB]}: low → high</div>
+        <div>
+          <div class="bivariate-grid">${gridHtml}</div>
+          <div class="legend-axis-x">${FIELD_LABELS[fieldA]}: low → high</div>
+        </div>
+      </div>
+      <div class="legend-note">Tracts with fewer than 5 applications excluded (unreliable rates)</div>
+      <div class="legend-note">Basemap: OpenStreetMap</div>
+    `;
+    return;
+  }
+
+  box.className = 'map-legend';
   const grad = mode === 'change'
     ? 'linear-gradient(to right, #4de3d1, #fff, #ff5fb4)'
     : 'linear-gradient(to right, #fff, #ff5fb4)';
@@ -1627,7 +1676,6 @@ function updateLegend(mode, fieldA, fieldB, aMin, aMax){
     <div class="legend-title">${mode==='change' ? FIELD_LABELS[fieldA] + ', % change' : FIELD_LABELS[fieldA]}</div>
     <div class="legend-gradient" style="background:${grad};"></div>
     <div class="legend-labels"><span>${leftLabel}</span><span>${rightLabel}</span></div>
-    ${(mode!=='change' && fieldB && fieldB!=='none') ? `<div class="legend-note">Border thickness = ${FIELD_LABELS[fieldB]} (thicker = higher)</div>` : ''}
     ${mode!=='change' ? `<div class="legend-note">Tracts with fewer than 5 applications excluded (unreliable rates)</div>` : ''}
     <div class="legend-note">Basemap: OpenStreetMap</div>
   `;
@@ -1663,20 +1711,17 @@ async function renderYearMap(){
   const aMin = aVals.length?Math.min(...aVals):0, aMax = aVals.length?Math.max(...aVals):1;
   const bVals = fieldB!=='none' ? Object.values(dataByTract).map(r=>r[fieldB]).filter(v=>v!=null) : [];
   const bMin = bVals.length?Math.min(...bVals):0, bMax = bVals.length?Math.max(...bVals):1;
-  updateLegend('year', fieldA, fieldB, aMin, aMax);
+  updateLegend('year', fieldA, fieldB, aMin, aMax, bMin, bMax);
 
   geoLayer = L.geoJSON(gj, {
     style: (feature) => {
       const geoid = tractGeoIdOf(feature);
       const rec = dataByTract[geoid];
       const val = rec ? rec[fieldA] : null;
-      const fillColor = colorScale(val, aMin, aMax, '#ff5fb4');
-      let weight = 1.5;
-      if(rec && fieldB!=='none' && rec[fieldB]!=null && bMax>bMin){
-        const t = (rec[fieldB]-bMin)/(bMax-bMin);
-        weight = 1.5 + t*5;
-      }
-      if(selectedTract===geoid) weight = Math.max(weight, 4);
+      const fillColor = (fieldB!=='none')
+        ? bivariateColor(val, aMin, aMax, rec?rec[fieldB]:null, bMin, bMax)
+        : colorScale(val, aMin, aMax, '#ff5fb4');
+      let weight = selectedTract===geoid ? 4 : 1.5;
       return { fillColor, color: selectedTract===geoid ? '#161513' : '#4de3d1', weight, fillOpacity: rec ? 0.55 : 0.08 };
     },
     onEachFeature: (feature, layer) => {
