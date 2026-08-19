@@ -1,7 +1,7 @@
 # El Paso, Underwritten
 ### An HMDA loan-level dashboard for El Paso County, TX (2007–2025)
 
-A self-contained, single-file HTML dashboard built from raw Home Mortgage Disclosure Act (HMDA) Loan/Application Register (LAR) data, in the pudding.cool "highlighter" visual style.
+A self-contained, single-file HTML dashboard built from raw Home Mortgage Disclosure Act (HMDA) Loan/Application Register (LAR) data.
 
 **[Open the dashboard → `https://hoffmanap.github.io/HMDA/`](https://hoffmanap.github.io/HMDA/)**
 
@@ -9,16 +9,16 @@ A self-contained, single-file HTML dashboard built from raw Home Mortgage Disclo
 
 ## What this is
 
-Every mortgage application filed in El Paso County generates a public HMDA record: who applied, how much they asked to borrow, what the property was worth, and whether the lender said yes. This project harmonizes **547,755 such records across 17 filing years** (2007–2013, 2015, 2017–2025; only 2014 and 2016 are missing) into one dashboard covering:
+Every mortgage application filed in El Paso County generates a public HMDA record: who applied, how much they asked to borrow, what the property was worth, and whether the lender said yes. This project harmonizes **603,549 such records covering every filing year from 2007 through 2025** into one dashboard covering:
 
 - **Trends over time**: applications, denial rate, median loan amount, 2007-2025
 - **A filterable explorer**: loan purpose mix or denial rate by race, any combination of years
 - **A persistent gap**: denial-rate differences by race across the full period, with caveats about small-sample categories and the "Race Not Available" code
 - **Loan type mix**: Conventional, FHA, VA, and FSA/RHS shares by year, including El Paso's distinctly high VA loan share (tied to Fort Bliss) and FHA's role during and after the 2008-2012 credit crunch
-- **Denial reasons**: which stated reasons (credit history, debt-to-income ratio, collateral, etc.) drive denials, and how that mix has shifted over time
+- **Denial reasons**: the top four stated reasons (credit history, debt-to-income ratio, collateral, incomplete application) plus a consolidated "other reasons" bucket, and how that mix has shifted over time
 - **Affordability**: median property value vs. median applicant income, 2018 onward
-- **Who applies vs. who lives here**: a beeswarm comparing the income distribution of recent applicants (split by outcome and by ethnicity) against El Paso County's actual median household income and demographics, from the American Community Survey
-- **Tract-by-tract detail**: all 240 El Paso census tracts, as a sortable bivariate-encoded table, with a **map** driven by the same tract boundary files described below
+- **Who applies vs. who lives here**: a beeswarm comparing recent applicants against El Paso County's actual median household income and median home value (toggle between the two), split by outcome or by ethnicity, against American Community Survey benchmarks
+- **Tract-by-tract detail**: all 240 El Paso census tracts, as a sortable bivariate-encoded table with click-to-link map highlighting, plus a **% change view** showing how each tract shifted from its first to its most recent year of data
 
 The dashboard is a single HTML file with all aggregated data **and both charting/mapping libraries (Chart.js, Leaflet) embedded inline**; it works fully offline, with no server, no API calls, and no CDN or external network dependency of any kind. Opening the file is enough; nothing needs to load from the internet except the optional Google Fonts link, which is purely cosmetic and the page still renders correctly without it.
 
@@ -28,9 +28,8 @@ The dashboard is a single HTML file with all aggregated data **and both charting
 
 | Years | Format | Notes |
 |---|---|---|
-| 2007–2013, 2015, 2017 | Legacy HMDA LAR schema (78–79 cols) | Statewide Texas files, filtered here to El Paso County (FIPS 48141) |
-| 2018–2019, 2020, 2021–2025 | Modern HMDA LAR schema (104–108 cols, post-2017 rule) | Pre-filtered to El Paso County. 2020 arrived as an `.xlsx` file rather than `.csv`, but uses this same modern schema, not the legacy one |
-| **2014, 2016** | **Not currently in this archive** | Appear as gaps in trend lines, not a market disruption, just missing source files |
+| 2007–2017 | Legacy HMDA LAR schema (78–79 cols) | Statewide Texas files, filtered here to El Paso County (FIPS 48141) |
+| 2018–2025 | Modern HMDA LAR schema (104–108 cols, post-2017 rule) | Pre-filtered to El Paso County. 2020 arrived as an `.xlsx` file rather than `.csv`, but uses this same modern schema, not the legacy one |
 
 Raw source: [FFIEC/CFPB HMDA Data Browser](https://ffiec.cfpb.gov/data-browser/)
 
@@ -105,5 +104,5 @@ These are population-level statistics, not loan-level data, and are not embedded
 
 - **Not a causal analysis.** Denial rate differences by race, income, or geography reflect the raw HMDA record only; they do not control for credit score, debt-to-income ratio, loan-to-value ratio, or other underwriting factors also captured (inconsistently) in the source data. Read disparities as *patterns worth investigating*, not conclusions about discrimination or its absence.
 - **Small-sample volatility.** Some tracts and race categories have very few applications in a given year; rates built on small denominators swing widely and are flagged accordingly where possible, but always sanity-check the underlying count before drawing conclusions from a single cell.
-- **2014 and 2016 are gaps**, not zeros. The trend resumes on either side.
+- **No gaps**: every filing year 2007–2025 is present, so trend lines are unbroken across the full window.
 - **"Race Not Available"** is largely a data-quality artifact (common for loans purchased from another originator, which don't carry the original applicant demographics); treat it as missing data, not as its own demographic group.
