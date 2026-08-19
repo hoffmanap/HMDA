@@ -3,7 +3,7 @@
 
 A self-contained, single-file HTML dashboard built from raw Home Mortgage Disclosure Act (HMDA) Loan/Application Register (LAR) data, in the pudding.cool "highlighter" visual style.
 
-**[Open the dashboard → `https://hoffmanap.github.io/HMDA/`](https://hoffmanap.github.io/HMDA/)**
+**[Open the dashboard → `https://hoffmanap.github.io/HMDA/`]**
 
 ---
 
